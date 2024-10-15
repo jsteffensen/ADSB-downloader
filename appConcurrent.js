@@ -2,28 +2,37 @@ const fs = require('fs');
 const fsp = require('fs').promises;
 const https = require('https');
 const path = require('path');
-const util = require('util');
+const zlib = require('zlib');
+
+const segmentsDir = path.join(__dirname, 'segments');
+const extractedDir = path.join(__dirname, 'extracted');
 
 const CONCURRENCY_LIMIT = 8;
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2023/01/01/';
 
 const startAtFile = '115655Z.json.gz';
-const takeFiles = 720;
+const takeFiles = 10; // 720 = 1 hours worth of 5-second segments
+
+const upperLeftLat = 55.0000;
+const upperLeftLon = 5.0000;
+const lowerRightLat = 54.0000;
+const lowerRightLon = 7.0000;
 
 // state variables
 let segmentURLs;
 
 (async () => {
 
-  // load URLs from url address like: 
+  // load URLs from webpage
   segmentURLs = await getSegmentURLs(urlInput);
 
-  // download
+  // download individual .json.gz files
   await downloadSegmentsConcurrently(segmentURLs, CONCURRENCY_LIMIT);
+  
+  // extract to extracted folder
+  await extractFiles();
 
 })();
-
-
 
 function getSegmentURLs(urlInput) {
   
@@ -51,9 +60,9 @@ function getSegmentURLs(urlInput) {
 						lineString = lineString.split('">')[0];
 
 						let url = lineString;
-						if(lineString == startAtFile) (
+						if(lineString == startAtFile) {
 							segmentURLs.push(urlInput + lineString);
-						) else if(segmentURLs.length > 0 && segmentURLs.length < takeFiles) {
+						} else if(segmentURLs.length > 0 && segmentURLs.length < takeFiles) {
 							segmentURLs.push(urlInput + lineString);
 						}
 
@@ -130,3 +139,50 @@ async function downloadSegmentsConcurrently(urls, limit) {
   }
 }
 
+// Function to decompress a .json.gz file and save as .json
+const decompressFile = (inputFile, outputFile) => {
+  return new Promise((resolve, reject) => {
+    const fileContents = fs.createReadStream(inputFile);
+    const writeStream = fs.createWriteStream(outputFile);
+    const unzip = zlib.createGunzip();
+
+    fileContents
+      .pipe(unzip)  // Decompress
+      .pipe(writeStream)  // Write to output
+      .on('finish', () => {
+        console.log(`Successfully decompressed ${inputFile} to ${outputFile}`);
+        resolve();
+      })
+      .on('error', (err) => {
+        console.error(`Error decompressing ${inputFile}:`, err);
+        reject(err);
+      });
+  });
+};
+
+// Function to process all .json.gz files in the /segments folder
+const extractFiles = async () => {
+  try {
+    // Ensure the output directory exists
+    await ensureDirectory(extractedDir);
+
+    // Read the directory and get the list of files
+    const files = await fsPromises.readdir(segmentsDir);
+
+    // Filter out non-.json.gz files
+    const jsonGzFiles = files.filter(file => file.endsWith('.json.gz'));
+
+    // Process each file asynchronously
+    for (const file of jsonGzFiles) {
+      const inputFile = path.join(segmentsDir, file);
+      const outputFile = path.join(extractedDir, file.replace('.gz', ''));  // Remove .gz suffix for output
+
+      // Decompress each file and await the result
+      await decompressFile(inputFile, outputFile);
+    }
+
+    console.log('All files have been processed.');
+  } catch (err) {
+    console.error('Error processing files:', err);
+  }
+};
