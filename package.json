@@ -1,0 +1,19 @@
+{
+  "name": "adsb-downloader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "appConcurrent.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsteffensen/ADSB-downloader.git"
+  },
+  "author": "jsteffensen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jsteffensen/ADSB-downloader/issues"
+  },
+  "homepage": "https://github.com/jsteffensen/ADSB-downloader#readme"
+}
