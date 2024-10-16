@@ -38,4 +38,5 @@
 - **mlat**: Multi-lateration data, if available, a system to triangulate aircraft position.
 - **tisb**: Traffic Information Service - Broadcast, data from ground stations to aircraft.
 - **messages**: The number of ADS-B messages received from the aircraft.
-- **seen**: Time in seconds since the last message was received. - **rssi**: Received Signal Strength Indicator, showing the strength of the ADS-B signal in dB.
+- **seen**: Time in seconds since the last message was received.
+- **rssi**: Received Signal Strength Indicator, showing the strength of the ADS-B signal in dB.
