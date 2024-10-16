@@ -11,12 +11,13 @@ const dataFile = './data.json';
 
 let datapoints = [];
 let compiledData = {};
+let idCount = 0;
 
 const CONCURRENCY_LIMIT = 8;
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2023/01/01/';
 
-const startAtFile = '000000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
-const takeFiles = 8000; // 720 = 1 hours worth of 5-second segments
+const startAtFile = '120000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
+const takeFiles = 500; // 720 = 1 hours worth of 5-second segments
 
 const upperLeftLat = 52.0000;
 const upperLeftLon = 5.0000;
@@ -191,6 +192,9 @@ const extractFiles = async () => {
 
       // Decompress each file and await the result
       await decompressFile(inputFile, outputFile);
+	  
+	  // Delete the input file after extraction
+      await fsPromises.unlink(inputFile);
     }
 
     console.log('All files have been extracted.');
@@ -214,7 +218,7 @@ const processJsonFiles = async () => {
       const inputFile = path.join(extractedDir, file);
 
       // filter each files content and await the result
-      await writeFilteredContent(inputFile);
+      await compileFilteredContent(inputFile);
     }
 
     console.log('All files have been processed.');
@@ -241,6 +245,7 @@ function parseJsonAndFilter(jsonString) {
 				
 				if(isWithinLatLon) {
 					//console.log(jsonData['aircraft'][i]);
+					jsonData['aircraft'][i]['now'] = Math.round(jsonData['now']); 
 					returnData.push(jsonData['aircraft'][i]);
 				}
 			}
@@ -254,10 +259,9 @@ function parseJsonAndFilter(jsonString) {
     }
 }
 
-// Function to decompress a .json.gz file and save as .json
-const writeFilteredContent = (inputFile) => {
+// Read .json files
+const compileFilteredContent = (inputFile) => {
   return new Promise((resolve, reject) => {
-    console.log('Processing file: ' + inputFile);
 
     // Read the entire file content as a string
     fs.readFile(inputFile, 'utf8', (err, data) => {
@@ -272,8 +276,12 @@ const writeFilteredContent = (inputFile) => {
 
 		// Append the filtered data to the datapoints
 		datapoints = datapoints.concat(filteredData);
-        resolve();
-
+		
+		// Delete the json source
+		fs.unlink(inputFile, ()=>{
+			resolve();	
+		});
+		
       } catch (error) {
         console.error(`Error processing JSON in file ${inputFile}:`, error);
         reject(error);
@@ -297,10 +305,77 @@ const writeDataFile = () => {
 			let hexValue = datapoints[i]['hex'];
 			
 			if(!compiledData.hasOwnProperty(hexValue)) {
-				compiledData[hexValue] = [];
+				compiledData[hexValue] = JSON.parse(JSON.stringify(datapoints[i]));
+				delete compiledData[hexValue]['now'];
+				delete compiledData[hexValue]['nic'];
+				delete compiledData[hexValue]['rc'];
+				delete compiledData[hexValue]['alt_baro'];
+				delete compiledData[hexValue]['gs'];
+				delete compiledData[hexValue]['true_heading'];
+				delete compiledData[hexValue]['squawk'];
+				delete compiledData[hexValue]['emergency'];
+				delete compiledData[hexValue]['alt_geom'];
+				delete compiledData[hexValue]['track'];
+				delete compiledData[hexValue]['baro_rate'];
+				delete compiledData[hexValue]['nav_qnh'];
+				delete compiledData[hexValue]['nav_altitude_mcp'];
+				delete compiledData[hexValue]['nav_altitude_fms'];
+				delete compiledData[hexValue]['nav_modes'];
+				delete compiledData[hexValue]['lat'];
+				delete compiledData[hexValue]['lon'];
+				delete compiledData[hexValue]['seen_pos'];
+				delete compiledData[hexValue]['version'];
+				delete compiledData[hexValue]['nic_baro'];
+				delete compiledData[hexValue]['nac_p'];
+				delete compiledData[hexValue]['nac_v'];
+				delete compiledData[hexValue]['sil'];
+				delete compiledData[hexValue]['sil_type'];
+				delete compiledData[hexValue]['gva'];
+				delete compiledData[hexValue]['sda'];
+				delete compiledData[hexValue]['alert'];
+				delete compiledData[hexValue]['spi'];
+				delete compiledData[hexValue]['mlat'];
+				delete compiledData[hexValue]['tisb'];
+				delete compiledData[hexValue]['messages'];
+				delete compiledData[hexValue]['seen'];
+				delete compiledData[hexValue]['rssi'];
+				
+				compiledData[hexValue]['datapoints'] = [];
+				idCount++;
 			}
 			
-			compiledData[hexValue].push(datapoints[i]);
+			let dataPoint = JSON.parse(JSON.stringify(datapoints[i]));
+
+			delete dataPoint['hex'];
+			delete dataPoint['type'];
+			delete dataPoint['flight'];
+			delete dataPoint['r'];
+			delete dataPoint['t'];
+			delete dataPoint['category'];
+			delete dataPoint['nic'];
+			delete dataPoint['rc'];
+			delete dataPoint['nav_qnh'];
+			delete dataPoint['nav_altitude_mcp'];
+			delete dataPoint['nav_altitude_fms'];
+			delete dataPoint['nav_modes'];
+			delete dataPoint['seen_pos'];
+			delete dataPoint['version'];
+			delete dataPoint['nic_baro'];
+			delete dataPoint['nac_p'];
+			delete dataPoint['nac_v'];
+			delete dataPoint['sil'];
+			delete dataPoint['sil_type'];
+			delete dataPoint['gva'];
+			delete dataPoint['sda'];
+			delete dataPoint['alert'];
+			delete dataPoint['spi'];
+			delete dataPoint['mlat'];
+			delete dataPoint['tisb'];
+			delete dataPoint['messages'];
+			delete dataPoint['seen'];
+			delete dataPoint['rssi'];
+
+			compiledData[hexValue]['datapoints'].push(dataPoint);
 		}
 
 		fs.appendFile(dataFile, JSON.stringify(compiledData, null, 2), (err) => {
@@ -308,7 +383,7 @@ const writeDataFile = () => {
 				console.error(`Error writing to ${dataFile}:`, err);
 				return reject(err);
 			}
-			console.log('Filtered data written');
+			console.log('Filtered data written. ' + idCount + ' IDs.');
 			resolve();
 		});
   });
