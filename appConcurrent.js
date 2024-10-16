@@ -1,4 +1,5 @@
 const fs = require('fs');
+const fsPromises = fs.promises;
 const fsp = require('fs').promises;
 const https = require('https');
 const path = require('path');
@@ -6,17 +7,21 @@ const zlib = require('zlib');
 
 const segmentsDir = path.join(__dirname, 'segments');
 const extractedDir = path.join(__dirname, 'extracted');
+const dataFile = './data.json';
+
+let datapoints = [];
+let compiledData = {};
 
 const CONCURRENCY_LIMIT = 8;
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2023/01/01/';
 
-const startAtFile = '115655Z.json.gz';
-const takeFiles = 10; // 720 = 1 hours worth of 5-second segments
+const startAtFile = '000000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
+const takeFiles = 8000; // 720 = 1 hours worth of 5-second segments
 
-const upperLeftLat = 55.0000;
+const upperLeftLat = 52.0000;
 const upperLeftLon = 5.0000;
-const lowerRightLat = 54.0000;
-const lowerRightLon = 7.0000;
+const lowerRightLat = 49.0000;
+const lowerRightLon = 12.0000;
 
 // state variables
 let segmentURLs;
@@ -31,6 +36,15 @@ let segmentURLs;
   
   // extract to extracted folder
   await extractFiles();
+  
+  // create data file
+  await createDataFile();
+  
+  // filter json data
+  await processJsonFiles();
+  
+  // write data to data.json
+  await writeDataFile();
 
 })();
 
@@ -150,7 +164,7 @@ const decompressFile = (inputFile, outputFile) => {
       .pipe(unzip)  // Decompress
       .pipe(writeStream)  // Write to output
       .on('finish', () => {
-        console.log(`Successfully decompressed ${inputFile} to ${outputFile}`);
+        //console.log(`Decompressed ${inputFile}`);
         resolve();
       })
       .on('error', (err) => {
@@ -160,11 +174,9 @@ const decompressFile = (inputFile, outputFile) => {
   });
 };
 
-// Function to process all .json.gz files in the /segments folder
+// Read .json.gz files in the /segments folder and extract to /extracted
 const extractFiles = async () => {
   try {
-    // Ensure the output directory exists
-    await ensureDirectory(extractedDir);
 
     // Read the directory and get the list of files
     const files = await fsPromises.readdir(segmentsDir);
@@ -181,8 +193,125 @@ const extractFiles = async () => {
       await decompressFile(inputFile, outputFile);
     }
 
+    console.log('All files have been extracted.');
+  } catch (err) {
+    console.error('Error processing files:', err);
+  }
+};
+
+// Read .json files in the /extracted folder and process data
+const processJsonFiles = async () => {
+  try {
+
+    // Read the directory and get the list of files
+    const files = await fsPromises.readdir(extractedDir);
+
+    // Filter out non-.json.gz files
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+
+    // Process each file asynchronously
+    for (const file of jsonFiles) {
+      const inputFile = path.join(extractedDir, file);
+
+      // filter each files content and await the result
+      await writeFilteredContent(inputFile);
+    }
+
     console.log('All files have been processed.');
   } catch (err) {
     console.error('Error processing files:', err);
   }
 };
+
+function parseJsonAndFilter(jsonString) {
+    try {
+        const jsonData = JSON.parse(jsonString);
+		const returnData = [];
+		
+        // Check if the 'aircraft' key exists and return it
+        if (jsonData.hasOwnProperty('aircraft')) {
+			for(let i=0; i<jsonData['aircraft'].length; i++) {
+				
+				const isWithinLat1 = jsonData['aircraft'][i]['lat'] <= upperLeftLat;
+				const isWithinLon1 = jsonData['aircraft'][i]['lon'] >= upperLeftLon;
+				const isWithinLat2 = jsonData['aircraft'][i]['lat'] >= lowerRightLat;
+				const isWithinLon2 = jsonData['aircraft'][i]['lon'] <= lowerRightLon;
+				
+				const isWithinLatLon = isWithinLat1 && isWithinLon1 && isWithinLat2 && isWithinLon2;
+				
+				if(isWithinLatLon) {
+					//console.log(jsonData['aircraft'][i]);
+					returnData.push(jsonData['aircraft'][i]);
+				}
+			}
+            return returnData;
+        } else {
+            throw new Error("Key 'aircraft' not found in JSON data.");
+        }
+    } catch (error) {
+        console.error("Error parsing JSON data: ", error);
+        return null;
+    }
+}
+
+// Function to decompress a .json.gz file and save as .json
+const writeFilteredContent = (inputFile) => {
+  return new Promise((resolve, reject) => {
+    console.log('Processing file: ' + inputFile);
+
+    // Read the entire file content as a string
+    fs.readFile(inputFile, 'utf8', (err, data) => {
+      if (err) {
+        console.error(`Error reading file ${inputFile}:`, err);
+        return reject(err);
+      }
+
+      try {
+        // Parse the file content as JSON
+        const filteredData = parseJsonAndFilter(data);
+
+		// Append the filtered data to the datapoints
+		datapoints = datapoints.concat(filteredData);
+        resolve();
+
+      } catch (error) {
+        console.error(`Error processing JSON in file ${inputFile}:`, error);
+        reject(error);
+      }
+    });
+  });
+};
+
+const createDataFile = () => {
+  return new Promise((resolve, reject) => {
+		fs.closeSync(fs.openSync(dataFile, 'w'));
+		resolve();
+  });
+};
+
+const writeDataFile = () => {
+  return new Promise((resolve, reject) => {
+	  
+		for(let i=0; i<datapoints.length; i++) {
+			
+			let hexValue = datapoints[i]['hex'];
+			
+			if(!compiledData.hasOwnProperty(hexValue)) {
+				compiledData[hexValue] = [];
+			}
+			
+			compiledData[hexValue].push(datapoints[i]);
+		}
+
+		fs.appendFile(dataFile, JSON.stringify(compiledData, null, 2), (err) => {
+			if (err) {
+				console.error(`Error writing to ${dataFile}:`, err);
+				return reject(err);
+			}
+			console.log('Filtered data written');
+			resolve();
+		});
+  });
+};
+
+
