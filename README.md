@@ -1,5 +1,11 @@
 # ADSB-downloader
 
+## Data source
+
+Data is downloaded from https://samples.adsbexchange.com/readsb-hist/
+Data files are split into 5 second segments thus 24 hours = 17280 individual files.
+If each file on average i 600kB then a full 24 hour history is approximately 10GB.
+
 ## ADS-B fields
 
 - **hex**: The ICAO 24-bit transponder code, a unique identifier assigned to each aircraft.
