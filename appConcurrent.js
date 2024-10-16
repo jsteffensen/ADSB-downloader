@@ -17,7 +17,7 @@ const CONCURRENCY_LIMIT = 8;
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2023/01/01/';
 
 const startAtFile = '120000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
-const takeFiles = 500; // 720 = 1 hours worth of 5-second segments
+const takeFiles = 300; // 720 = 1 hours worth of 5-second segments
 
 const upperLeftLat = 52.0000;
 const upperLeftLon = 5.0000;
@@ -340,6 +340,18 @@ const writeDataFile = () => {
 				delete compiledData[hexValue]['seen'];
 				delete compiledData[hexValue]['rssi'];
 				
+				delete compiledData[hexValue]['ias'];
+				delete compiledData[hexValue]['tas'];
+				delete compiledData[hexValue]['mach'];
+				delete compiledData[hexValue]['wd'];
+				delete compiledData[hexValue]['ws'];
+				delete compiledData[hexValue]['oat'];
+				delete compiledData[hexValue]['tat'];
+				delete compiledData[hexValue]['track_rate'];
+				delete compiledData[hexValue]['roll'];
+				delete compiledData[hexValue]['mag_heading'];
+				delete compiledData[hexValue]['geom_rate'];
+					
 				compiledData[hexValue]['datapoints'] = [];
 				idCount++;
 			}
