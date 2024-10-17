@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/jsteffensen/ADSB-downloader/issues"
   },
-  "homepage": "https://github.com/jsteffensen/ADSB-downloader#readme"
+  "homepage": "https://github.com/jsteffensen/ADSB-downloader#readme",
+  "dependencies": {
+    "express": "^4.21.1",
+    "socket.io": "^4.8.0"
+  }
 }

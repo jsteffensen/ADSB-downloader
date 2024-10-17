@@ -132,3 +132,4 @@ dist
 # app specific
 segments/
 extracted/
+data/

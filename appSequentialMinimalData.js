@@ -7,6 +7,7 @@ const zlib = require('zlib');
 
 const segmentsDir = path.join(__dirname, 'segments');
 const extractedDir = path.join(__dirname, 'extracted');
+let segmentURLs = [];
 const dataFile = './data.json';
 
 let datapoints = [];
@@ -15,8 +16,8 @@ let idCount = 0;
 
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2024/10/01/';
 
-const startAtFile = '120000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
-const takeFiles = 1440; // 720 = 1 hours worth of 5-second segments
+const startAtFile = '030000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
+const takeFiles = 720; // 720 = 1 hours worth of 5-second segments
 
 const upperLeftLat = 52.0000;
 const upperLeftLon = 5.0000;
@@ -24,14 +25,12 @@ const upperLeftLon = 5.0000;
 const lowerRightLat = 49.0000;
 const lowerRightLon = 8.0000;
 
-// state variables
-let segmentURLs;
-
 (async () => {
 
   // load URLs from webpage
-  segmentURLs = await getSegmentURLs(urlInput);
-
+  //segmentURLs = await getSegmentURLs(urlInput);
+  // or generate
+  segmentURLs = await generateSegmentURLs();
   
   while(segmentURLs.length>0) {
   	let url = segmentURLs.shift();
@@ -68,7 +67,6 @@ function getSegmentURLs(urlInput) {
             // Once all data is received, resolve the promise with the HTML content
             res.on('end', () => {
 				
-		let segmentURLs = [];
 		let linesArray = data.split(/\r?\n/);
 		
 		for (let i = 0; i < linesArray.length; i++) {
@@ -94,6 +92,43 @@ function getSegmentURLs(urlInput) {
             reject(err);
         });
     });
+}
+
+function generateSegmentURLs(urlInput) {
+    return new Promise((resolve, reject) => {
+			
+		let baseUrl = 'https://samples.adsbexchange.com/readsb-hist/2024/10/01/';
+		let urlEnding = 'Z.json.gz';
+		
+		let hours = 11;
+		let minutes = 0;
+		let seconds = 0;
+				
+		while (hours < 24 && segmentURLs.length < takeFiles) {
+
+			const timeString = String(hours).padStart(2, '0') + 
+							   String(minutes).padStart(2, '0') + 
+							   String(seconds).padStart(2, '0');
+							   
+			segmentURLs.push(baseUrl + timeString + urlEnding);
+
+			// Increment seconds by 5
+			seconds += 5;
+
+			// Handle overflow of seconds
+			if (seconds >= 60) {
+				seconds -= 60;
+				minutes++;
+			}
+
+			// Handle overflow of minutes
+			if (minutes >= 60) {
+				minutes -= 60;
+				hours++;
+			}
+		}
+		resolve(segmentURLs);
+	});
 }
 
 async function download(url) {
