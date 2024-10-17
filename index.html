@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Socket.IO flight data</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+  <div id="map" style="width: 1400px; height: 900px;"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  
+    const map = L.map('map').setView([50.50, 6.50], 8);
+
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+	maxZoom: 19,
+	attribution: false
+    }).addTo(map);
+
+
+    const layerGroup = L.layerGroup();
+    map.addLayer(layerGroup);
+  
+    let counter = 0;
+
+    const socket = io({
+      auth: {
+        serverOffset: 0
+      },
+      ackTimeout: 10000,
+      retries: 3,
+    });
+
+    socket.on('plots', (plots, serverOffset) => {
+      
+      layerGroup.clearLayers();
+      
+      for(let i=0; i<plots.length; i++){
+        let plotLat = plots[i]['lat'];
+        let plotLon = plots[i]['lon'];
+      	L.marker([plotLat, plotLon]).addTo(layerGroup);
+      }
+      socket.auth.serverOffset = serverOffset;
+    });
+    
+  </script>
+</body>
+</html>
