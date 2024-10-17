@@ -13,11 +13,10 @@ let datapoints = [];
 let compiledData = {};
 let idCount = 0;
 
-const CONCURRENCY_LIMIT = 8;
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2024/10/01/';
 
 const startAtFile = '120000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
-const takeFiles = 10; // 720 = 1 hours worth of 5-second segments
+const takeFiles = 1440; // 720 = 1 hours worth of 5-second segments
 
 const upperLeftLat = 52.0000;
 const upperLeftLon = 5.0000;
@@ -42,6 +41,8 @@ let segmentURLs;
   	
   	await extractFile(fileName);
   	await processJsonFile(extractedFileName);
+  	
+  	console.log(segmentURLs.length + ' files to go.');
   }
   
   // create data file
@@ -301,4 +302,3 @@ const writeDataFile = () => {
 		});
   });
 };
-
