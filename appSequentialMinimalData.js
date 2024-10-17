@@ -42,7 +42,7 @@ let segmentURLs;
   	await extractFile(fileName);
   	await processJsonFile(extractedFileName);
   	
-  	console.log(segmentURLs.length + ' files to go.');
+  	console.log(fileName.replace('.json.gz', '') + '  ' + segmentURLs.length + ' files to go.');
   }
   
   // create data file
@@ -124,7 +124,6 @@ async function download(url) {
 
     // The destination stream is ended by the time it's called
     file.on('finish', () => {
-      console.log(url);
       resolve(fileName);
     });
 
@@ -152,7 +151,6 @@ const decompressFile = (inputFile, outputFile) => {
       .pipe(unzip)  // Decompress
       .pipe(writeStream)  // Write to output
       .on('finish', () => {
-        //console.log(`Decompressed ${inputFile}`);
         resolve();
       })
       .on('error', (err) => {
@@ -198,21 +196,21 @@ function parseJsonAndFilter(jsonString) {
 		
         // Check if the 'aircraft' key exists and return it
         if (jsonData.hasOwnProperty('aircraft')) {
-			for(let i=0; i<jsonData['aircraft'].length; i++) {
-				
-				const isWithinLat1 = jsonData['aircraft'][i]['lat'] <= upperLeftLat;
-				const isWithinLon1 = jsonData['aircraft'][i]['lon'] >= upperLeftLon;
-				const isWithinLat2 = jsonData['aircraft'][i]['lat'] >= lowerRightLat;
-				const isWithinLon2 = jsonData['aircraft'][i]['lon'] <= lowerRightLon;
-				
-				const isWithinLatLon = isWithinLat1 && isWithinLon1 && isWithinLat2 && isWithinLon2;
-				const isNotOnGround = jsonData['aircraft'][i]['alt_baro'] != 'ground';
-				
-				if(isWithinLatLon && isNotOnGround) {
-					jsonData['aircraft'][i]['now'] = Math.round(jsonData['now']); 
-					returnData.push(jsonData['aircraft'][i]);
-				}
+		for(let i=0; i<jsonData['aircraft'].length; i++) {
+			
+			const isWithinLat1 = jsonData['aircraft'][i]['lat'] <= upperLeftLat;
+			const isWithinLon1 = jsonData['aircraft'][i]['lon'] >= upperLeftLon;
+			const isWithinLat2 = jsonData['aircraft'][i]['lat'] >= lowerRightLat;
+			const isWithinLon2 = jsonData['aircraft'][i]['lon'] <= lowerRightLon;
+			
+			const isWithinLatLon = isWithinLat1 && isWithinLon1 && isWithinLat2 && isWithinLon2;
+			const isNotOnGround = jsonData['aircraft'][i]['alt_baro'] != 'ground';
+			
+			if(isWithinLatLon && isNotOnGround) {
+				jsonData['aircraft'][i]['now'] = Math.round(jsonData['now']); 
+				returnData.push(jsonData['aircraft'][i]);
 			}
+		}
             return returnData;
         } else {
             throw new Error("Key 'aircraft' not found in JSON data.");
@@ -241,7 +239,6 @@ const compileFilteredContent = (inputFile) => {
 		// Append the filtered data to the datapoints
 		datapoints = datapoints.concat(filteredData);
 		
-		console.log('Delete ' + inputFile);
 		// Delete the json source
 		fs.unlink(inputFile, ()=>{
 			resolve();	
@@ -297,8 +294,9 @@ const writeDataFile = () => {
 				console.error(`Error writing to ${dataFile}:`, err);
 				return reject(err);
 			}
-			console.log('Filtered data written. ' + idCount + ' IDs.');
+			console.log('Data file created. ' + idCount + ' IDs.');
 			resolve();
 		});
   });
 };
+
