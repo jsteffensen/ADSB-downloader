@@ -130,6 +130,9 @@ dist
 .pnp.*
 
 # app specific
+mergedData.json
+manipulatedData.json
+countData.json
 segments/
 extracted/
 data/

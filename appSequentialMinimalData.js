@@ -8,28 +8,33 @@ const zlib = require('zlib');
 const segmentsDir = path.join(__dirname, 'segments');
 const extractedDir = path.join(__dirname, 'extracted');
 let segmentURLs = [];
-const dataFile = './data.json';
+
 
 let datapoints = [];
 let compiledData = {};
 let idCount = 0;
 
+//////////////////////////////////////////////////////////////////////////////////
+
 const urlInput = 'https://samples.adsbexchange.com/readsb-hist/2024/10/01/';
 
-const startAtFile = '030000Z.json.gz'; // 000000Z.json.gz to 235955Z.json.gz
+const startHour = 23;
+
+const dataFile = './data/' + startHour + '.json';
 const takeFiles = 720; // 720 = 1 hours worth of 5-second segments
 
-const upperLeftLat = 52.0000;
+
+// 560 x 555 km geobox
+const upperLeftLat = 53.0000;
 const upperLeftLon = 5.0000;
 
-const lowerRightLat = 49.0000;
-const lowerRightLon = 8.0000;
+const lowerRightLat = 48.0000;
+const lowerRightLon = 13.0000;
+
+//////////////////////////////////////////////////////////////////////////////////
 
 (async () => {
 
-  // load URLs from webpage
-  //segmentURLs = await getSegmentURLs(urlInput);
-  // or generate
   segmentURLs = await generateSegmentURLs();
   
   while(segmentURLs.length>0) {
@@ -52,63 +57,19 @@ const lowerRightLon = 8.0000;
 
 })();
 
-function getSegmentURLs(urlInput) {
-  
-    return new Promise((resolve, reject) => {
-		
-        https.get(urlInput, (res) => {
-            let data = '';
-
-            // Collect the data chunks
-            res.on('data', (chunk) => {
-                data += chunk;
-            });
-
-            // Once all data is received, resolve the promise with the HTML content
-            res.on('end', () => {
-				
-		let linesArray = data.split(/\r?\n/);
-		
-		for (let i = 0; i < linesArray.length; i++) {
-
-			if (linesArray[i].indexOf('.json.gz') > 0) {
-				let lineString = linesArray[i];
-				lineString = lineString.replace('<span class="name"><a href="', '');
-				lineString = lineString.split('">')[0];
-
-				let url = lineString;
-				if(lineString == startAtFile) {
-					segmentURLs.push(urlInput + lineString);
-				} else if(segmentURLs.length > 0 && segmentURLs.length < takeFiles) {
-					segmentURLs.push(urlInput + lineString);
-				}
-
-			}
-		}
-                resolve(segmentURLs);
-            });
-
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
-
 function generateSegmentURLs(urlInput) {
     return new Promise((resolve, reject) => {
 			
 		let baseUrl = 'https://samples.adsbexchange.com/readsb-hist/2024/10/01/';
 		let urlEnding = 'Z.json.gz';
 		
-		let hours = 11;
+		let hours = startHour;
 		let minutes = 0;
 		let seconds = 0;
 				
 		while (hours < 24 && segmentURLs.length < takeFiles) {
 
-			const timeString = String(hours).padStart(2, '0') + 
-							   String(minutes).padStart(2, '0') + 
-							   String(seconds).padStart(2, '0');
+			const timeString = String(hours).padStart(2, '0') + String(minutes).padStart(2, '0') + String(seconds).padStart(2, '0');
 							   
 			segmentURLs.push(baseUrl + timeString + urlEnding);
 

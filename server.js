@@ -23,7 +23,7 @@ io.on('connection', (socket) => {
   
 });
 
-let startTime;
+let startTime = 1727783155;
 let simTime;
 let plotStore;
 
@@ -33,7 +33,7 @@ const loadFlightData = () => {
   return new Promise((resolve, reject) => {
 
     // Read the entire file content as a string
-    fs.readFile('./data.json', 'utf8', (err, data) => {
+    fs.readFile('./manipulatedData.json', 'utf8', (err, data) => {
       if (err) {
         console.error('Error reading data.json', err);
         return reject(err);
@@ -41,11 +41,17 @@ const loadFlightData = () => {
 
       try {
         plotStore = JSON.parse(data);
-        startTime = plotStore['start_time'];
+		
+		idCount = 0;
+		for (const [key, value] of Object.entries(plotStore)) {
+		  idCount++;
+		}
+		console.log('data loaded with ' + idCount + ' IDs.');
+		
+		
         simTime = startTime;
-        delete plotStore['start_time'];
         
-        console.log('data loaded');
+        
 	resolve();
 		
       } catch (error) {
@@ -56,7 +62,7 @@ const loadFlightData = () => {
   });
 };
 
-const intervalID = setInterval(plotUpdater, 500);
+const intervalID = setInterval(plotUpdater, 2000);
 
 function plotUpdater() {
 
@@ -64,18 +70,21 @@ function plotUpdater() {
   
   for (const [key, value] of Object.entries(plotStore)) {
 
-      let flight = JSON.parse(JSON.stringify(plotStore[key]));
-      let flightDataPoints = flight['datapoints'];
-      delete flight['datapoints'];
+	if(plotStore[key].hasOwnProperty('datapoints')) {
+		let flight = JSON.parse(JSON.stringify(plotStore[key]));
+		  let flightDataPoints = JSON.parse(JSON.stringify(flight['datapoints']));
+		  delete flight['datapoints'];
+		  
+		  for(let i=0; i<flightDataPoints.length; i++) {
+			if(flightDataPoints[i]['now'] == simTime) {
+			  let dataPointNow = JSON.parse(JSON.stringify(flightDataPoints[i]));
+			  flight = {...flight, ...dataPointNow};
+			  dataBurst.push(flight);
+			  break;
+			}
+		  }
+	}
       
-      for(let i=0; i<flightDataPoints.length; i++) {
-        if(flightDataPoints[i]['now'] == simTime) {
-          let dataPointNow = JSON.parse(JSON.stringify(flightDataPoints[i]));
-          flight = {...flight, ...dataPointNow};
-          dataBurst.push(flight);
-          break;
-        }
-      }
   }
   
   if(dataBurst.length > 0) {
@@ -84,7 +93,7 @@ function plotUpdater() {
   	simTime = startTime;
   }
   
-
+  console.log(simTime);
   io.emit('plots', dataBurst);
 }
 
